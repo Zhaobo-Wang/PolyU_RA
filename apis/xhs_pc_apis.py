@@ -7,6 +7,8 @@ from xhs_utils.xhs_util import splice_str, generate_request_params, generate_x_b
 from xhs_utils.data_util import parse_note_datetime
 from loguru import logger
 from datetime import datetime, timezone
+import time
+import random
 
 """
     获小红书的api
@@ -382,6 +384,7 @@ class XHS_Apis():
                 "xsec_token": kvDist['xsec_token']
             }
             headers, cookies, data = generate_request_params(cookies_str, api, data)
+            time.sleep(random.uniform(1, 3))
             response = requests.post(self.base_url + api, headers=headers, data=data, cookies=cookies, proxies=proxies)
             res_json = response.json()
             success, msg = res_json["success"], res_json["msg"]
