@@ -4,7 +4,9 @@ import re
 import urllib
 import requests
 from xhs_utils.xhs_util import splice_str, generate_request_params, generate_x_b3_traceid, get_common_headers
+from xhs_utils.data_util import parse_note_datetime
 from loguru import logger
+from datetime import datetime, timezone
 
 """
     获小红书的api
@@ -546,6 +548,85 @@ class XHS_Apis():
                 note_list.extend(notes)
                 page += 1
                 if len(note_list) >= require_num or not res_json["data"]["has_more"]:
+                    break
+        except Exception as e:
+            success = False
+            msg = str(e)
+        if len(note_list) > require_num:
+            note_list = note_list[:require_num]
+        return success, msg, note_list
+    
+    
+    # Jimbo Function
+    def search_some_note_filtered_date(self, query: str, require_num: int, cookies_str: str,
+                     sort_type_choice=0, note_type=0, note_time=0, note_range=0,
+                     pos_distance=0, geo="", proxies: dict = None,
+                     start_date: str = None, end_date: str = None):
+        """
+        改进版: 支持按任意日期区间筛选(start_date/end_date 格式 'YYYY-MM-DD'）。
+        如果 start_date/end_date 为空，则行为等同于原函数（只按数量）。
+        """
+        page = 1
+        note_list = []
+        try:
+            start_dt = None
+            end_dt = None
+            if start_date:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            if end_date:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+
+            while True:
+                success, msg, res_json = self.search_note(query, cookies_str, page,
+                                                        sort_type_choice, note_type,
+                                                        note_time, note_range,
+                                                        pos_distance, geo, proxies)
+                    
+                if not success:
+                    raise Exception(msg)
+                if "items" not in res_json["data"]:
+                    break
+                notes = res_json["data"]["items"]
+                notes = [n for n in notes if n.get('model_type') == "note"]
+                
+            
+                if start_dt or end_dt:
+                    filtered = []
+                    for n in notes:
+                        
+                        if 'note_card' in n and 'corner_tag_info' in n['note_card']:
+                            for tag in n['note_card']['corner_tag_info']:
+                                if tag.get('type') == 'publish_time':
+                                    publish_time = tag.get('text')
+                                    break
+                        
+                        note_id = n.get('id', 'unknown')
+                        title = n.get('note_card', {}).get('display_title', '无标题')
+                        
+                        logger.info(f"笔记ID: {note_id}, 标题: '{title}', 发布时间: {publish_time}")
+ 
+                        dt = parse_note_datetime(n)
+                        
+                        logger.info(f"解析后笔记发布时间：{dt}")
+                        
+                        if dt is None:
+                            continue
+                        if start_dt and dt < start_dt:
+                            logger.info(f"跳过早于 {start_date} 的笔记")
+                            continue
+                        if end_dt and dt > end_dt:
+                            logger.info(f"跳过晚于 {end_date} 的笔记")
+                            continue
+                        filtered.append(n)
+                        
+                    notes = filtered
+
+                note_list.extend(notes)
+
+                page += 1
+                # 如果收集到足够数量就停止
+                if len(note_list) >= require_num or not res_json["data"].get("has_more"):
                     break
         except Exception as e:
             success = False

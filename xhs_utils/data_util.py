@@ -6,7 +6,7 @@ import openpyxl
 import requests
 from loguru import logger
 from retry import retry
-
+from datetime import datetime, timezone
 
 def norm_str(str):
     new_str = re.sub(r"|[\\/:*?\"<>| ]+", "", str).replace('\n', '').replace('\r', '')
@@ -350,3 +350,35 @@ def download_note(note_info, path, save_choice):
 def check_and_create_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
+        
+def parse_note_datetime(note):
+    """
+    尝试从 note 中解析出 datetime 对象(UTC)。
+    支持小红书特有的日期格式。
+    如果找不到有效时间，返回 None。
+    """
+    # 首先检查 note_card.corner_tag_info 中的 publish_time
+    if 'note_card' in note and 'corner_tag_info' in note['note_card']:
+        for tag in note['note_card']['corner_tag_info']:
+            if tag.get('type') == 'publish_time' and tag.get('text'):
+                date_text = tag['text']
+                try:
+                    # 完整日期格式 "YYYY-MM-DD"
+                    if re.match(r'\d{4}-\d{2}-\d{2}', date_text):
+                        dt = datetime.strptime(date_text, "%Y-%m-%d")
+                        return dt.replace(tzinfo=timezone.utc)
+                    
+                     # 月日格式直接跳过
+                    elif re.match(r'\d{1,2}-\d{1,2}', date_text):
+                        logger.debug(f"跳过月日格式日期: {date_text}")
+                        return None
+                    
+                    # 相对时间格式也可以选择跳过
+                    elif '天前' in date_text or '小时前' in date_text or '分钟前' in date_text:
+                        logger.debug(f"跳过相对时间格式日期: {date_text}")
+                        return None
+                    
+                except Exception as e:
+                    logger.debug(f"解析日期失败: {e}, 原始文本: {date_text}")
+                    
+    return None
