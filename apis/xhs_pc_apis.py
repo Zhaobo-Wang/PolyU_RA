@@ -998,11 +998,11 @@ if __name__ == '__main__':
     success, msg, note_info = xhs_apis.get_note_info(note_url, cookies_str)
     logger.info(f'获取笔记信息结果 {json.dumps(note_info, ensure_ascii=False)}: {success}, msg: {msg}')
     # 获取搜索关键词
-    query = "榴莲"
+    query = "淄博烧烤"
     success, msg, search_keyword = xhs_apis.get_search_keyword(query, cookies_str)
     logger.info(f'获取搜索关键词结果 {json.dumps(search_keyword, ensure_ascii=False)}: {success}, msg: {msg}')
     # 搜索笔记
-    query = "榴莲"
+    query = "淄博烧烤"
     query_num = 10
     sort = "general"
     note_type = 0

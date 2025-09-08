@@ -112,24 +112,83 @@ def handle_note_info(data):
         ip_location = '未知'
     return {
         'note_id': note_id,
-        'note_url': note_url,
-        'note_type': note_type,
+        'note_url': note_url, #link
+        'note_type': note_type, 
         'user_id': user_id,
         'home_url': home_url,
-        'nickname': nickname,
+        'nickname': nickname, #username
         'avatar': avatar,
-        'title': title,
-        'desc': desc,
-        'liked_count': liked_count,
-        'collected_count': collected_count,
-        'comment_count': comment_count,
+        'title': title,  #title
+        'desc': desc, #content
+        'liked_count': liked_count, #like count
+        'collected_count': collected_count, #save count
+        'comment_count': comment_count, #comment count
         'share_count': share_count,
         'video_cover': video_cover,
         'video_addr': video_addr,
         'image_list': image_list,
-        'tags': tags,
-        'upload_time': upload_time,
-        'ip_location': ip_location,
+        'tags': tags, #hashtags
+        'upload_time': upload_time, #post time
+        'ip_location': ip_location, #location
+    }
+
+#Jimbo function
+def handle_note_info_task_1(data):
+    note_url = data['url']
+    note_type = data['note_card']['type']
+    if note_type == 'normal':
+        note_type = '图集'
+    else:
+        note_type = '视频'
+    user_id = data['note_card']['user']['user_id']
+    home_url = f'https://www.xiaohongshu.com/user/profile/{user_id}'
+    nickname = data['note_card']['user']['nickname']
+    title = data['note_card']['title']
+    if title.strip() == '':
+        title = f'无标题'
+    desc = data['note_card']['desc']
+    liked_count = data['note_card']['interact_info']['liked_count']
+    collected_count = data['note_card']['interact_info']['collected_count']
+    comment_count = data['note_card']['interact_info']['comment_count']
+    image_list_temp = data['note_card']['image_list']
+    image_list = []
+    for image in image_list_temp:
+        try:
+            image_list.append(image['info_list'][1]['url'])
+            # success, msg, img_url = XHS_Apis.get_note_no_water_img(image['info_list'][1]['url'])
+            # image_list.append(img_url)
+        except:
+            pass
+    if note_type == '视频':
+        video_cover = image_list[0]
+        video_addr = 'https://sns-video-bd.xhscdn.com/' + data['note_card']['video']['consumer']['origin_video_key']
+        # success, msg, video_addr = XHS_Apis.get_note_no_water_video(note_id)
+    else:
+        video_cover = None
+        video_addr = None
+    tags_temp = data['note_card']['tag_list']
+    tags = []
+    for tag in tags_temp:
+        try:
+            tags.append(tag['name'])
+        except:
+            pass
+    upload_time = timestamp_to_str(data['note_card']['time'])
+    if 'ip_location' in data['note_card']:
+        ip_location = data['note_card']['ip_location']
+    else:
+        ip_location = '未知'
+    return {
+        'note_url': note_url, #link
+        'nickname': nickname, #username
+        'upload_time': upload_time, #post time
+        'ip_location': ip_location, #location
+        'title': title,  #title
+        'desc': desc, #content
+        'tags': tags, #hashtags
+        'comment_count': comment_count, #comment count
+        'liked_count': liked_count, #like count
+        'collected_count': collected_count, #save count
     }
 
 def handle_comment_info(data):
@@ -180,6 +239,23 @@ def save_to_xlsx(datas, file_path, type='note'):
     ws = wb.active
     if type == 'note':
         headers = ['笔记id', '笔记url', '笔记类型', '用户id', '用户主页url', '昵称', '头像url', '标题', '描述', '点赞数量', '收藏数量', '评论数量', '分享数量', '视频封面url', '视频地址url', '图片地址url列表', '标签', '上传时间', 'ip归属地']
+    elif type == 'user':
+        headers = ['用户id', '用户主页url', '用户名', '头像url', '小红书号', '性别', 'ip地址', '介绍', '关注数量', '粉丝数量', '作品被赞和收藏数量', '标签']
+    else:
+        headers = ['笔记id', '笔记url', '评论id', '用户id', '用户主页url', '昵称', '头像url', '评论内容', '评论标签', '点赞数量', '上传时间', 'ip归属地', '图片地址url列表']
+    ws.append(headers)
+    for data in datas:
+        data = {k: norm_text(str(v)) for k, v in data.items()}
+        ws.append(list(data.values()))
+    wb.save(file_path)
+    logger.info(f'数据保存至 {file_path}')
+
+#Jimbo Function
+def save_to_xlsx_task_1(datas, file_path, type='note'):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    if type == 'note':
+        headers = ['Link', 'Username', 'Post Time', 'Location', 'Title', 'Content', 'Hashtags', 'Comment Count', 'Like Count', 'Save Count']
     elif type == 'user':
         headers = ['用户id', '用户主页url', '用户名', '头像url', '小红书号', '性别', 'ip地址', '介绍', '关注数量', '粉丝数量', '作品被赞和收藏数量', '标签']
     else:

@@ -3,7 +3,7 @@ import os
 from loguru import logger
 from apis.xhs_pc_apis import XHS_Apis
 from xhs_utils.common_util import init
-from xhs_utils.data_util import handle_note_info, download_note, save_to_xlsx
+from xhs_utils.data_util import handle_note_info, download_note, save_to_xlsx, handle_note_info_task_1, save_to_xlsx_task_1
 
 
 class Data_Spider():
@@ -24,6 +24,27 @@ class Data_Spider():
                 note_info = note_info['data']['items'][0]
                 note_info['url'] = note_url
                 note_info = handle_note_info(note_info)
+        except Exception as e:
+            success = False
+            msg = e
+        logger.info(f'爬取笔记信息 {note_url}: {success}, msg: {msg}')
+        return success, msg, note_info
+    
+    #Jimbo Function
+    def spider_note_post_data_required(self, note_url: str, cookies_str: str, proxies=None):
+        """
+        爬取一个笔记的信息
+        :param note_url:
+        :param cookies_str:
+        :return:
+        """
+        note_info = None
+        try:
+            success, msg, note_info = self.xhs_apis.get_note_info(note_url, cookies_str, proxies)
+            if success:
+                note_info = note_info['data']['items'][0]
+                note_info['url'] = note_url
+                note_info = handle_note_info_task_1(note_info)
         except Exception as e:
             success = False
             msg = e
@@ -51,6 +72,26 @@ class Data_Spider():
         if save_choice == 'all' or save_choice == 'excel':
             file_path = os.path.abspath(os.path.join(base_path['excel'], f'{excel_name}.xlsx'))
             save_to_xlsx(note_list, file_path)
+
+    # Jimbo Function Task 1 
+    def spider_some_note_task_1(self, notes: list, cookies_str: str, base_path: dict, save_choice: str, excel_name: str = '', proxies=None):
+        """
+        爬取一些笔记的信息
+        :param notes:
+        :param cookies_str:
+        :param base_path:
+        :return:
+        """
+        if (save_choice == 'all' or save_choice == 'excel') and excel_name == '':
+            raise ValueError('excel_name 不能为空')
+        note_list = []
+        for note_url in notes:
+            success, msg, note_info = self.spider_note_post_data_required(note_url, cookies_str, proxies)
+            if note_info is not None and success:
+                note_list.append(note_info)
+        if save_choice == 'all' or save_choice == 'excel':
+            file_path = os.path.abspath(os.path.join(base_path['excel'], f'{excel_name}.xlsx'))
+            save_to_xlsx_task_1(note_list, file_path)
 
 
     def spider_user_all_note(self, user_url: str, cookies_str: str, base_path: dict, save_choice: str, excel_name: str = '', proxies=None):
@@ -103,7 +144,8 @@ class Data_Spider():
                     note_list.append(note_url)
             if save_choice == 'all' or save_choice == 'excel':
                 excel_name = query
-            self.spider_some_note(note_list, cookies_str, base_path, save_choice, excel_name, proxies)
+            #self.spider_some_note(note_list, cookies_str, base_path, save_choice, excel_name, proxies) #origin
+            self.spider_some_note_task_1(note_list, cookies_str, base_path, save_choice, excel_name, proxies) #Jimbo Function
         except Exception as e:
             success = False
             msg = e
@@ -127,18 +169,18 @@ if __name__ == '__main__':
 
 
     # 1 爬取列表的所有笔记信息 笔记链接 如下所示 注意此url会过期！
-    notes = [
-        r'https://www.xiaohongshu.com/explore/683fe17f0000000023017c6a?xsec_token=ABBr_cMzallQeLyKSRdPk9fwzA0torkbT_ubuQP1ayvKA=&xsec_source=pc_user',
-    ]
-    data_spider.spider_some_note(notes, cookies_str, base_path, 'all', 'test')
+    # notes = [
+    #     r'https://www.xiaohongshu.com/search_result?keyword=%25E6%25B7%2584%25E5%258D%259A%25E7%2583%25A7%25E7%2583%25A4&source=web_explore_feed',
+    # ]
+    # data_spider.spider_some_note(notes, cookies_str, base_path, 'all', 'test')
 
     # 2 爬取用户的所有笔记信息 用户链接 如下所示 注意此url会过期！
-    user_url = 'https://www.xiaohongshu.com/user/profile/64c3f392000000002b009e45?xsec_token=AB-GhAToFu07JwNk_AMICHnp7bSTjVz2beVIDBwSyPwvM=&xsec_source=pc_feed'
-    data_spider.spider_user_all_note(user_url, cookies_str, base_path, 'all')
+    # user_url = 'https://www.xiaohongshu.com/user/profile/64c3f392000000002b009e45?xsec_token=AB-GhAToFu07JwNk_AMICHnp7bSTjVz2beVIDBwSyPwvM=&xsec_source=pc_feed'
+    # data_spider.spider_user_all_note(user_url, cookies_str, base_path, 'all')
 
     # 3 搜索指定关键词的笔记
-    query = "榴莲"
-    query_num = 10
+    query = "淄博烧烤"
+    query_num = 20
     sort_type_choice = 0  # 0 综合排序, 1 最新, 2 最多点赞, 3 最多评论, 4 最多收藏
     note_type = 0 # 0 不限, 1 视频笔记, 2 普通笔记
     note_time = 0  # 0 不限, 1 一天内, 2 一周内天, 3 半年内
