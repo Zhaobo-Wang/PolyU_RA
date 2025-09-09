@@ -40,14 +40,22 @@ class Data_Spider():
         """
         note_info = None
         try:
+            logger.info(f"开始爬取笔记: {note_url}")
             success, msg, note_info = self.xhs_apis.get_note_info(note_url, cookies_str, proxies)
+            
             if success:
+                logger.info(f"成功获取笔记信息: {note_url}")
                 note_info = note_info['data']['items'][0]
                 note_info['url'] = note_url
                 note_info = handle_note_info_task_1(note_info)
+            else:
+                logger.error(f"获取笔记失败: {note_url}, 错误: {msg}")
+                
         except Exception as e:
             success = False
-            msg = e
+            msg = str(e)
+            logger.error(f"爬取笔记异常: {note_url}, 错误: {e}", exc_info=True)
+            
         logger.info(f'爬取笔记信息 {note_url}: {success}, msg: {msg}')
         return success, msg, note_info
 
@@ -119,7 +127,7 @@ class Data_Spider():
         logger.info(f'爬取用户所有视频 {user_url}: {success}, msg: {msg}')
         return note_list, success, msg
 
-    def spider_some_search_note(self, query: str, require_num: int, cookies_str: str, base_path: dict, save_choice: str, sort_type_choice=0, note_type=0, note_time=0, note_range=0, pos_distance=0, geo: dict = None,  excel_name: str = '', proxies=None):
+    def spider_some_search_note(self, query: str, require_num: int, cookies_str: str, base_path: dict, save_choice: str, sort_type_choice=0, note_type=0, note_time=0, note_range=0, pos_distance=0, geo: dict = None,  excel_name: str = '', proxies=None, start_date=None, end_date=None):
         """
             指定数量搜索笔记，设置排序方式和笔记类型和笔记数量
             :param query 搜索的关键词
@@ -135,7 +143,8 @@ class Data_Spider():
         """
         note_list = []
         try:
-            success, msg, notes = self.xhs_apis.search_some_note(query, require_num, cookies_str, sort_type_choice, note_type, note_time, note_range, pos_distance, geo, proxies)
+            # success, msg, notes = self.xhs_apis.search_some_note(query, require_num, cookies_str, sort_type_choice, note_type, note_time, note_range, pos_distance, geo, proxies) #origin
+            success, msg, notes = self.xhs_apis.search_some_note_filtered_date(query, require_num, cookies_str, sort_type_choice, note_type, note_time, note_range, pos_distance, geo, proxies, start_date, end_date) #Jimbo Function
             if success:
                 notes = list(filter(lambda x: x['model_type'] == "note", notes))
                 logger.info(f'搜索关键词 {query} 笔记数量: {len(notes)}')
@@ -186,9 +195,11 @@ if __name__ == '__main__':
     note_time = 0  # 0 不限, 1 一天内, 2 一周内天, 3 半年内
     note_range = 0  # 0 不限, 1 已看过, 2 未看过, 3 已关注
     pos_distance = 0  # 0 不限, 1 同城, 2 附近 指定这个1或2必须要指定 geo
+    start_date = "2022-01-01"
+    end_date = "2024-12-31"
     # geo = {
     #     # 经纬度
     #     "latitude": 39.9725,
     #     "longitude": 116.4207
     # }
-    data_spider.spider_some_search_note(query, query_num, cookies_str, base_path, 'all', sort_type_choice, note_type, note_time, note_range, pos_distance, geo=None)
+    data_spider.spider_some_search_note(query, query_num, cookies_str, base_path, 'all', sort_type_choice, note_type, note_time, note_range, pos_distance, geo=None, start_date=start_date, end_date=end_date)
